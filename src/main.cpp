@@ -18,6 +18,7 @@ int pos2 = 0;
 int lastPos1 = 0, lastPos2 = 0;
 int minAngle1 = 0, maxAngle1 = 360;
 int minANgle2 = 10, maxAngle2 = 45;
+bool isDataNew = false;
 //--------------------------------------
 // button and led and potentiometer
 #define IGNITE_LED_PIN 8
@@ -60,14 +61,27 @@ void setup()
   Serial.begin(9600);
 
   //--------------------------------------
-  stepper1.setMaxSpeed(2000);
-  stepper1.setAcceleration(1000); // Acceleration
-  stepper1.setSpeed(2000);        // Set initial speed
+  pinMode(EN1, OUTPUT);
+  pinMode(DIR1, OUTPUT);
+  pinMode(EN2, OUTPUT);
+  pinMode(DIR2, OUTPUT);
+  dw(EN1, LOW);
+  dw(DIR1, LOW);
+  dw(EN2, LOW);
+  dw(DIR2, LOW);
+  delay(5000);
 
-  stepper2.setMaxSpeed(2000);
-  stepper2.setAcceleration(1000); // Acceleration
-  stepper2.setSpeed(2000);        // Set initial speed
+  //--------------------------------------
+  stepper1.setMaxSpeed(500);
+  stepper1.setAcceleration(200); // Acceleration
+  stepper1.setSpeed(100);        // Set initial speed
 
+  stepper2.setMaxSpeed(500);
+  stepper2.setAcceleration(200); // Acceleration
+  stepper2.setSpeed(100);        // Set initial speed
+
+  stepper1.moveTo(0);
+  stepper2.moveTo(0);
   //--------------------------------------
   pinMode(PUMPPIN, OUTPUT);
   pinMode(VALVEPIN, OUTPUT);
@@ -98,8 +112,8 @@ void setup()
   radio.openReadingPipe(1, address);
   radio.startListening();
 
-  controlData.ch1 = FULL_ROUND_STEP / 2; // to the middle
-  controlData.ch2 = FULL_ROUND_STEP / 2; // to the middle
+  controlData.ch1 = 0;
+  controlData.ch2 = 0;
   controlData.ch3 = 0;
   controlData.ch4 = 0;
   controlData.ch5 = 0;
@@ -116,6 +130,7 @@ void revData()
     Serial.println("radio available");
     radio.read(&controlData, sizeof(controlData));
     lastTime = millis();
+    isDataNew = true;
   }
 }
 //==================================================================================================
@@ -132,64 +147,65 @@ void loop()
 {
   stepper1.run(); // Non-blocking run
   stepper2.run(); // Non-blocking run
-
   revData();
-
-  pos1 = controlData.ch1 * 20; // gear ratio is 5/1
-  pos2 = controlData.ch2;
-  pos2 = pos2 * 100;
-
-  stepper1.moveTo(pos1);
-  stepper2.moveTo(pos2);
-  stepper1.run();
-  stepper2.run();
-
-  checkReachLowestPoint();
-
-  // if (controlData.ch3 == 1 && !isPressureFull)
-  // {
-  //   dw(VALVEPIN, LOW);
-  //   dw(PUMPPIN, HIGH);
-  //   controlData.ch3 = 0;
-  // }
-  // else
-  // {
-  //   dw(VALVEPIN, LOW);
-  //   dw(PUMPPIN, LOW);
-  // }
-
-  if (controlData.ch4 == 1)
+  if (isDataNew == true)
   {
-    // count down
-    dw(IGNITE_LED_PIN, HIGH);
-    delay(1000);
-    dw(IGNITE_LED_PIN, LOW);
-    delay(1000);
-    dw(IGNITE_LED_PIN, HIGH);
-    delay(1000);
-    dw(IGNITE_LED_PIN, LOW);
-    delay(1000);
-    dw(IGNITE_LED_PIN, HIGH);
-    delay(1000);
-    dw(IGNITE_LED_PIN, LOW);
+    isDataNew = false;
 
-    // launch
-    dw(VALVEPIN, HIGH);
-    isPressureFull = false;
-    controlData.ch4 = 0;
-  }
-  else
-  {
-    dw(VALVEPIN, LOW);
-  }
+    pos1 = controlData.ch1 * 100; // gear ratio is 5/1
+    pos2 = controlData.ch2;
+    pos2 = pos2 * 100;
 
-  // ready to lauch
-  // if (isPressureFull)
-  // {
-  //   dw(VALVEPIN, LOW);
-  //   dw(PUMPPIN, LOW);
-  //   dw(FUEL_LED_PIN, HIGH);
-  //   delay(1000);
-  // }
+    stepper1.moveTo(pos1);
+    stepper2.moveTo(pos2);
+
+    checkReachLowestPoint();
+
+    if (controlData.ch4 == 1)
+    {
+      // count down
+      dw(IGNITE_LED_PIN, HIGH);
+      delay(1000);
+      dw(IGNITE_LED_PIN, LOW);
+      delay(1000);
+      dw(IGNITE_LED_PIN, HIGH);
+      delay(1000);
+      dw(IGNITE_LED_PIN, LOW);
+      delay(1000);
+      dw(IGNITE_LED_PIN, HIGH);
+      delay(1000);
+      dw(IGNITE_LED_PIN, LOW);
+
+      // launch
+      dw(VALVEPIN, HIGH);
+      isPressureFull = false;
+      controlData.ch4 = 0;
+    }
+    else
+    {
+      dw(VALVEPIN, LOW);
+    }
+
+    // if (controlData.ch3 == 1 && !isPressureFull)
+    // {
+    //   dw(VALVEPIN, LOW);
+    //   dw(PUMPPIN, HIGH);
+    //   controlData.ch3 = 0;
+    // }
+    // else
+    // {
+    //   dw(VALVEPIN, LOW);
+    //   dw(PUMPPIN, LOW);
+    // }
+
+    // ready to lauch
+    // if (isPressureFull)
+    // {
+    //   dw(VALVEPIN, LOW);
+    //   dw(PUMPPIN, LOW);
+    //   dw(FUEL_LED_PIN, HIGH);
+    //   delay(1000);
+    // }
+  }
 }
 //==================================================================================================
